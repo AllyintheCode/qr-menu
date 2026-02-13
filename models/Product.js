@@ -8,6 +8,12 @@ const ProductSchema = new mongoose.Schema({
     type: String,
   },
   image: String,
+
+  // 🔥 BUNU ƏLAVƏ ET
+  imagePublicId: {
+    type: String,
+  },
+
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Category",

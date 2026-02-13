@@ -1,23 +1,21 @@
-import { connectDB } from "../../../../lib/db.js";
-import Product from "../../../../models/Product.js";
-import Category from "../../../../models/Category.js"; // ✅ relative et
 import { NextResponse } from "next/server";
+import cloudinary from "../../../../lib/cloudinary";
+import { connectDB } from "../../../../lib/db";
+import Product from "../../../../models/Product";
 
-import { writeFile } from "fs/promises";
-import path from "path";
-import fs from "fs";
+/* ================= HELPER ================= */
+function toDataUri(file, buffer) {
+  return `data:${file.type};base64,${buffer.toString("base64")}`;
+}
 
 /* ================= GET ================= */
 export async function GET() {
   await connectDB();
-
-  // Category modeli register olsun deyə import edirik (yuxarıda)
   const products = await Product.find({}).populate("category");
-
   return NextResponse.json(products);
 }
 
-/* ================= POST (ADD + IMAGE) ================= */
+/* ================= POST ================= */
 export async function POST(req) {
   try {
     await connectDB();
@@ -39,19 +37,21 @@ export async function POST(req) {
     }
 
     let imagePath = "";
+    let publicId = "";
 
     if (image && image.name) {
       const bytes = await image.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      const fileName = `${Date.now()}-${image.name}`;
-      const uploadDir = path.join(process.cwd(), "public/uploads");
+      const uploadRes = await cloudinary.uploader.upload(
+        toDataUri(image, buffer),
+        {
+          folder: "qrmenu/products",
+        },
+      );
 
-      if (!fs.existsSync(uploadDir))
-        fs.mkdirSync(uploadDir, { recursive: true });
-
-      await writeFile(path.join(uploadDir, fileName), buffer);
-      imagePath = `/uploads/${fileName}`;
+      imagePath = uploadRes.secure_url;
+      publicId = uploadRes.public_id;
     }
 
     await Product.create({
@@ -61,6 +61,7 @@ export async function POST(req) {
       discountPrice,
       category,
       image: imagePath,
+      imagePublicId: publicId,
     });
 
     return NextResponse.json({ success: true });
@@ -70,13 +71,14 @@ export async function POST(req) {
   }
 }
 
-/* ================= PUT (EDIT + optional IMAGE) ================= */
+/* ================= PUT ================= */
 export async function PUT(req) {
   try {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+
     if (!id) return NextResponse.json({ error: "ID yoxdur" }, { status: 400 });
 
     const formData = await req.formData();
@@ -90,26 +92,29 @@ export async function PUT(req) {
 
     const product = await Product.findById(id);
     if (!product)
-      return NextResponse.json({ error: "Məhsul tapılmadı" }, { status: 404 });
+      return NextResponse.json({ error: "Tapılmadı" }, { status: 404 });
 
     let imagePath = product.image;
+    let publicId = product.imagePublicId;
 
     if (image && image.name) {
-      if (product.image) {
-        const oldPath = path.join(process.cwd(), "public", product.image);
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      // köhnə şəkli sil
+      if (product.imagePublicId) {
+        await cloudinary.uploader.destroy(product.imagePublicId);
       }
 
       const bytes = await image.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      const fileName = `${Date.now()}-${image.name}`;
-      const uploadDir = path.join(process.cwd(), "public/uploads");
-      if (!fs.existsSync(uploadDir))
-        fs.mkdirSync(uploadDir, { recursive: true });
+      const uploadRes = await cloudinary.uploader.upload(
+        toDataUri(image, buffer),
+        {
+          folder: "qrmenu/products",
+        },
+      );
 
-      await writeFile(path.join(uploadDir, fileName), buffer);
-      imagePath = `/uploads/${fileName}`;
+      imagePath = uploadRes.secure_url;
+      publicId = uploadRes.public_id;
     }
 
     await Product.findByIdAndUpdate(id, {
@@ -119,6 +124,7 @@ export async function PUT(req) {
       discountPrice,
       category,
       image: imagePath,
+      imagePublicId: publicId,
     });
 
     return NextResponse.json({ success: true });
@@ -140,12 +146,12 @@ export async function DELETE(req) {
     if (!product)
       return NextResponse.json({ error: "Tapılmadı" }, { status: 404 });
 
-    if (product.image) {
-      const imgPath = path.join(process.cwd(), "public", product.image);
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+    if (product.imagePublicId) {
+      await cloudinary.uploader.destroy(product.imagePublicId);
     }
 
     await Product.findByIdAndDelete(id);
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
