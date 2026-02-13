@@ -1,6 +1,8 @@
 import { connectDB } from "../../../../lib/db.js";
 import Product from "../../../../models/Product.js";
+import Category from "../../../../models/Category.js"; // ✅ relative et
 import { NextResponse } from "next/server";
+
 import { writeFile } from "fs/promises";
 import path from "path";
 import fs from "fs";
@@ -8,6 +10,8 @@ import fs from "fs";
 /* ================= GET ================= */
 export async function GET() {
   await connectDB();
+
+  // Category modeli register olsun deyə import edirik (yuxarıda)
   const products = await Product.find({}).populate("category");
 
   return NextResponse.json(products);
@@ -30,7 +34,7 @@ export async function POST(req) {
     if (!name || !price || !category) {
       return NextResponse.json(
         { error: "Vacib sahələr boşdur" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,9 +47,8 @@ export async function POST(req) {
       const fileName = `${Date.now()}-${image.name}`;
       const uploadDir = path.join(process.cwd(), "public/uploads");
 
-      if (!fs.existsSync(uploadDir)) {
+      if (!fs.existsSync(uploadDir))
         fs.mkdirSync(uploadDir, { recursive: true });
-      }
 
       await writeFile(path.join(uploadDir, fileName), buffer);
       imagePath = `/uploads/${fileName}`;
@@ -74,10 +77,7 @@ export async function PUT(req) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json({ error: "ID yoxdur" }, { status: 400 });
-    }
+    if (!id) return NextResponse.json({ error: "ID yoxdur" }, { status: 400 });
 
     const formData = await req.formData();
 
@@ -89,14 +89,12 @@ export async function PUT(req) {
     const image = formData.get("image");
 
     const product = await Product.findById(id);
-    if (!product) {
+    if (!product)
       return NextResponse.json({ error: "Məhsul tapılmadı" }, { status: 404 });
-    }
 
     let imagePath = product.image;
 
     if (image && image.name) {
-      // köhnə şəkli sil
       if (product.image) {
         const oldPath = path.join(process.cwd(), "public", product.image);
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
@@ -104,12 +102,11 @@ export async function PUT(req) {
 
       const bytes = await image.arrayBuffer();
       const buffer = Buffer.from(bytes);
+
       const fileName = `${Date.now()}-${image.name}`;
       const uploadDir = path.join(process.cwd(), "public/uploads");
-
-      if (!fs.existsSync(uploadDir)) {
+      if (!fs.existsSync(uploadDir))
         fs.mkdirSync(uploadDir, { recursive: true });
-      }
 
       await writeFile(path.join(uploadDir, fileName), buffer);
       imagePath = `/uploads/${fileName}`;
@@ -140,18 +137,15 @@ export async function DELETE(req) {
     const id = searchParams.get("id");
 
     const product = await Product.findById(id);
-    if (!product) {
+    if (!product)
       return NextResponse.json({ error: "Tapılmadı" }, { status: 404 });
-    }
 
-    // şəkli sil
     if (product.image) {
       const imgPath = path.join(process.cwd(), "public", product.image);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
 
     await Product.findByIdAndDelete(id);
-
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
