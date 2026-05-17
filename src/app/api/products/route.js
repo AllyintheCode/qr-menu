@@ -10,9 +10,17 @@ function toDataUri(file, buffer) {
 
 /* ================= GET ================= */
 export async function GET() {
-  await connectDB();
-  const products = await Product.find({}).populate("category");
-  return NextResponse.json(products);
+  try {
+    await connectDB();
+    const products = await Product.find({}).populate("category");
+    return NextResponse.json(products);
+  } catch (err) {
+    console.error("GET Products Error:", err);
+    return NextResponse.json(
+      { error: "DB error", message: err.message },
+      { status: 500 }
+    );
+  }
 }
 
 /* ================= POST ================= */

@@ -14,8 +14,21 @@ export default function Categories() {
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   const load = async () => {
-    const res = await fetch("/api/categories");
-    setCategories(await res.json());
+    try {
+      const res = await fetch("/api/categories");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCategories(data);
+      } else {
+        console.error("Categories response is not an array:", data);
+        toast.error(data?.message || "Kateqoriyalar yüklənərkən xəta baş verdi");
+        setCategories([]);
+      }
+    } catch (err) {
+      console.error("Load categories failed:", err);
+      toast.error("Kateqoriyalar yüklənə bilmədi");
+      setCategories([]);
+    }
   };
 
   useEffect(() => {

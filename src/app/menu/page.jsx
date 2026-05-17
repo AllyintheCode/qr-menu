@@ -131,12 +131,33 @@ export default function Menu() {
 
   useEffect(() => {
     const load = async () => {
-      const [catRes, prodRes] = await Promise.all([
-        fetch("/api/categories"),
-        fetch("/api/products"),
-      ]);
-      setCategories(await catRes.json());
-      setProducts(await prodRes.json());
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          fetch("/api/categories"),
+          fetch("/api/products"),
+        ]);
+        
+        const catData = await catRes.json();
+        const prodData = await prodRes.json();
+
+        if (Array.isArray(catData)) {
+          setCategories(catData);
+        } else {
+          console.error("Categories is not an array:", catData);
+          setCategories([]);
+        }
+
+        if (Array.isArray(prodData)) {
+          setProducts(prodData);
+        } else {
+          console.error("Products is not an array:", prodData);
+          setProducts([]);
+        }
+      } catch (err) {
+        console.error("Failed to load menu data:", err);
+        setCategories([]);
+        setProducts([]);
+      }
     };
     load();
   }, []);

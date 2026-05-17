@@ -2,17 +2,16 @@ import { connectDB } from "../../../../lib/db.js";
 import Category from "../../../../models/Category";
 
 export async function GET() {
-  await connectDB();
-
   try {
+    await connectDB();
     const categories = await Category.find({}); // collection mövcud olmalıdır
     return new Response(JSON.stringify(categories), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("DB Error:", err);
-    return new Response(JSON.stringify({ error: "DB error" }), {
+    console.error("DB Error in GET /api/categories:", err);
+    return new Response(JSON.stringify({ error: "DB error", message: err.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
